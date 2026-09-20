@@ -1,0 +1,14 @@
+Subject: TDL wiki content discrepancy (IT related instructions section)
+
+From: [sender], Quality Assurance Engineer
+To: [recipient]
+Date: Wed, Sep 2, 5:27 PM
+Attachments: 2 screenshots (not included in this file)
+
+Hello!
+Attaching screenshots from two TDL Wiki pages, that should have the same list of documents, but one is not updated with the latest info (e.g. AI Tool Licence request template, Crowdstrike...).
+There are also some documents that are removed in the newer version (Apple developer account..., eSim...). Not sure if it's on purpose from the IT team.
+
+Links:
+https://sites.google.com/testdevlab.com/wiki/it - IT related instructions section - newer version.
+https://sites.google.com/testdevlab.com/wiki/it/it-related-instructions - older version.

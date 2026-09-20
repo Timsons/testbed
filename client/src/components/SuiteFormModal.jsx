@@ -1,0 +1,125 @@
+import { useEffect, useRef, useState } from 'react';
+
+const STATUSES = ['draft', 'ready', 'in-progress', 'passed', 'failed'];
+
+function SuiteFormModal({ initial, onClose, onSubmit }) {
+  const isEdit = Boolean(initial);
+  const [name, setName] = useState(initial?.name || '');
+  const [feature, setFeature] = useState(initial?.feature || '');
+  const [status, setStatus] = useState(initial?.status || 'draft');
+  const [error, setError] = useState(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  const modalRef = useRef(null);
+  const nameFieldRef = useRef(null);
+
+  useEffect(() => {
+    nameFieldRef.current?.focus();
+  }, []);
+
+  useEffect(() => {
+    function handleKeyDown(event) {
+      if (event.key === 'Escape') {
+        onClose();
+        return;
+      }
+      if (event.key !== 'Tab' || !modalRef.current) return;
+
+      const focusable = Array.from(
+        modalRef.current.querySelectorAll('input, select, textarea, button')
+      ).filter((el) => !el.disabled);
+      if (focusable.length === 0) return;
+
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
+
+  async function handleSubmit(event) {
+    event.preventDefault();
+    if (!name.trim() || !feature.trim()) {
+      setError('Name and feature are both required.');
+      return;
+    }
+
+    setSubmitting(true);
+    setError(null);
+    try {
+      await onSubmit({ name: name.trim(), feature: feature.trim(), status });
+    } catch (err) {
+      setError(err.message);
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div
+        className="modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="suite-modal-title"
+        ref={modalRef}
+        onClick={(event) => event.stopPropagation()}
+      >
+        <h2 id="suite-modal-title">{isEdit ? 'Edit Suite' : 'New Suite'}</h2>
+        <form onSubmit={handleSubmit}>
+          <label>
+            Name
+            <input
+              ref={nameFieldRef}
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+              required
+            />
+          </label>
+
+          <label>
+            Feature
+            <input
+              value={feature}
+              onChange={(event) => setFeature(event.target.value)}
+              placeholder="e.g. login"
+              required
+            />
+          </label>
+
+          <label>
+            Status
+            <select value={status} onChange={(event) => setStatus(event.target.value)}>
+              {STATUSES.map((option) => (
+                <option key={option} value={option}>
+                  {option}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          {error && <p className="form-error">{error}</p>}
+
+          <div className="modal-actions">
+            <button type="button" onClick={onClose} disabled={submitting}>
+              Cancel
+            </button>
+            <button type="submit" disabled={submitting}>
+              {submitting ? 'Saving...' : 'Save'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+export default SuiteFormModal;
