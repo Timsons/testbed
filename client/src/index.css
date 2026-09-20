@@ -489,3 +489,148 @@ body {
   color: #fff;
   border: none;
 }
+
+.result-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  align-items: center;
+}
+
+.result-buttons button {
+  padding: 0.35rem 0.75rem;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+  background: #fff;
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+
+.result-buttons button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.alert-sent-badge {
+  font-size: 0.75rem;
+  color: #a11d10;
+  white-space: nowrap;
+}
+
+.test-cases-table textarea {
+  width: 100%;
+  min-width: 160px;
+  padding: 0.35rem;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: 0.85rem;
+  resize: vertical;
+}
+
+.section-title {
+  font-size: 1rem;
+  margin: 2rem 0 0.75rem;
+}
+
+.metric-cards {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+@media (max-width: 600px) {
+  .metric-cards {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.metric-card {
+  background: #fff;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 1rem;
+  min-height: 78px;
+}
+
+.metric-value {
+  font-size: 1.6rem;
+  font-weight: 700;
+}
+
+.metric-label {
+  font-size: 0.8rem;
+  color: #777;
+  margin-top: 0.25rem;
+}
+
+.metric-value-empty {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #999;
+}
+
+.metric-empty-link {
+  display: inline-block;
+  font-size: 0.8rem;
+  margin-top: 0.4rem;
+}
+
+.metric-card.skeleton {
+  background: linear-gradient(90deg, #eee 25%, #f5f5f5 37%, #eee 63%);
+  background-size: 400% 100%;
+  animation: skeleton-shimmer 1.4s ease infinite;
+}
+
+@keyframes skeleton-shimmer {
+  0% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0 50%;
+  }
+}
+
+.report-actions {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.button-link {
+  display: inline-flex;
+  align-items: center;
+  background: #1a1a1a;
+  color: #fff;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  text-decoration: none;
+}
+
+.report-actions button {
+  background: #fff;
+  color: #1a1a1a;
+  border: 1px solid #ccc;
+}
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+
+  .nav {
+    display: none !important;
+  }
+
+  body {
+    background: #fff;
+  }
+
+  .report-detail {
+    max-width: none;
+    padding: 0;
+  }
+}

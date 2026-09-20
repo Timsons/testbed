@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import SeverityBadge from '../components/SeverityBadge.jsx';
 import { addCaseToSuite, getSuite, removeCaseFromSuite, reorderSuiteCases } from '../api/suites.js';
 import { listTestCases } from '../api/test-cases.js';
+import { createRun } from '../api/runs.js';
 
 const SUITE_NOT_FOUND = 'Suite not found.';
 
@@ -16,6 +17,7 @@ function SuiteDetailPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [searching, setSearching] = useState(false);
+  const [startingRun, setStartingRun] = useState(false);
 
   const reorderSeqRef = useRef(0);
 
@@ -130,6 +132,18 @@ function SuiteDetailPage() {
     }
   }
 
+  async function handleNewRun() {
+    setStartingRun(true);
+    setError(null);
+    try {
+      const run = await createRun(id);
+      navigate(`/test-runs/${run.id}`);
+    } catch (err) {
+      setError(err.message);
+      setStartingRun(false);
+    }
+  }
+
   if (loading) return <div className="page">Loading...</div>;
   if (!suite) {
     return (
@@ -150,6 +164,9 @@ function SuiteDetailPage() {
 
       <div className="page-header">
         <h1>{suite.name}</h1>
+        <button onClick={handleNewRun} disabled={startingRun || suite.cases.length === 0}>
+          {startingRun ? 'Starting...' : '+ New Run'}
+        </button>
       </div>
       <p className="suite-meta">
         Feature: <strong>{suite.feature}</strong> &middot; Status: <strong>{suite.status}</strong>

@@ -253,3 +253,106 @@ export function seedBugsIfEmpty() {
 
   insertAll(SEED_BUGS);
 }
+
+export function seedRunsIfEmpty() {
+  const { count } = db.prepare('SELECT COUNT(*) as count FROM test_runs_v2').get();
+  if (count > 0) return;
+
+  const suite = db.prepare("SELECT id FROM suites WHERE name = 'Login Core Flows'").get();
+  if (!suite) return;
+
+  const cases = db
+    .prepare('SELECT test_case_id FROM suite_test_cases WHERE suite_id = ? ORDER BY sort_order ASC')
+    .all(suite.id);
+  if (cases.length === 0) return;
+
+  const findCaseTitle = db.prepare('SELECT title FROM test_cases WHERE id = ?');
+
+  // Seed results by title so this stays correct regardless of the suite's exact case order.
+  const RESULTS_BY_TITLE = {
+    'Login with valid credentials': { result: 'passed', duration_ms: 1200, notes: null },
+    'Login with incorrect password': {
+      result: 'failed',
+      duration_ms: 3400,
+      notes: 'The error message shown was generic ("Something went wrong") instead of "invalid email or password."',
+    },
+    'Session persists after browser refresh': { result: 'skipped', duration_ms: null, notes: 'Blocked: staging environment was down.' },
+  };
+
+  const startTime = hoursAgo(5);
+  const endTime = hoursAgo(4);
+
+  const insertRun = db.prepare(`
+    INSERT INTO test_runs_v2 (suite_id, status, pass_count, fail_count, skip_count, start_time, end_time, created_by)
+    VALUES (?, 'completed', 1, 1, 1, ?, ?, NULL)
+  `);
+  const insertResult = db.prepare(`
+    INSERT INTO test_run_results (run_id, test_case_id, result, duration_ms, notes, failed_at, alert_sent_at)
+    VALUES (?, ?, ?, ?, ?, ?, NULL)
+  `);
+
+  const insertAll = db.transaction(() => {
+    const result = insertRun.run(suite.id, startTime, endTime);
+    const runId = result.lastInsertRowid;
+
+    for (const c of cases) {
+      const title = findCaseTitle.get(c.test_case_id)?.title;
+      const seedResult = RESULTS_BY_TITLE[title];
+      if (!seedResult) continue;
+
+      insertResult.run(
+        runId,
+        c.test_case_id,
+        seedResult.result,
+        seedResult.duration_ms,
+        seedResult.notes,
+        seedResult.result === 'failed' ? endTime : null
+      );
+    }
+  });
+
+  insertAll();
+}
+
+export function seedReportsIfEmpty() {
+  const { count } = db.prepare('SELECT COUNT(*) as count FROM reports').get();
+  if (count > 0) return;
+
+  const run = db
+    .prepare(
+      `SELECT r.*, s.name AS suite_name FROM test_runs_v2 r LEFT JOIN suites s ON s.id = r.suite_id
+       ORDER BY r.start_time ASC LIMIT 1`
+    )
+    .get();
+  if (!run) return;
+
+  const results = db
+    .prepare(
+      `SELECT r.test_case_id, tc.title AS test_case_title, tc.severity AS test_case_severity,
+              r.result, r.duration_ms, r.notes
+       FROM test_run_results r
+       LEFT JOIN test_cases tc ON tc.id = r.test_case_id
+       WHERE r.run_id = ?
+       ORDER BY r.id ASC`
+    )
+    .all(run.id);
+
+  const passedCount = results.filter((r) => r.result === 'passed').length;
+  const failedCount = results.filter((r) => r.result === 'failed').length;
+  const skippedCount = results.filter((r) => r.result === 'skipped').length;
+
+  db.prepare(
+    `INSERT INTO reports (run_id, suite_name, run_date, total_count, passed_count, failed_count, skipped_count, results, generated_at)
+     VALUES (@run_id, @suite_name, @run_date, @total_count, @passed_count, @failed_count, @skipped_count, @results, @generated_at)`
+  ).run({
+    run_id: run.id,
+    suite_name: run.suite_name || `Suite #${run.suite_id}`,
+    run_date: run.start_time,
+    total_count: results.length,
+    passed_count: passedCount,
+    failed_count: failedCount,
+    skipped_count: skippedCount,
+    results: JSON.stringify(results),
+    generated_at: hoursAgo(3),
+  });
+}
