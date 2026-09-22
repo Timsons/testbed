@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { useSettings } from '../context/SettingsContext.jsx';
 
 const SEVERITIES = ['critical', 'major', 'minor', 'trivial'];
 const ENVIRONMENTS = ['Web Chrome', 'Android Chrome', 'iOS Chrome', 'iOS Safari'];
@@ -11,9 +12,10 @@ function textToSteps(text) {
 }
 
 function BugFormModal({ onClose, onSubmit }) {
+  const { settings } = useSettings();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [severity, setSeverity] = useState('major');
+  const [severity, setSeverity] = useState(settings?.default_severity_for_new_bugs || 'major');
   const [stepsText, setStepsText] = useState('');
   const [expected, setExpected] = useState('');
   const [actual, setActual] = useState('');

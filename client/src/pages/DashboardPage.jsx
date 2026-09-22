@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { getDashboardMetrics } from '../api/dashboard.js';
+import { getDashboardMetrics, getDashboardTrends } from '../api/dashboard.js';
+import PassRateTrendChart from '../components/charts/PassRateTrendChart.jsx';
+import BugsWeeklyChart from '../components/charts/BugsWeeklyChart.jsx';
+import StatusDonutChart from '../components/charts/StatusDonutChart.jsx';
 
 const REFRESH_INTERVAL_MS = 30000;
 
@@ -47,6 +50,8 @@ function DashboardPage() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [trends, setTrends] = useState(null);
+  const [trendsError, setTrendsError] = useState(null);
   const hasDataRef = useRef(false);
 
   const load = useCallback(() => {
@@ -64,11 +69,26 @@ function DashboardPage() {
       });
   }, []);
 
+  const loadTrends = useCallback(() => {
+    getDashboardTrends()
+      .then((result) => {
+        setTrends(result);
+        setTrendsError(null);
+      })
+      .catch((err) => {
+        setTrendsError(err.message);
+      });
+  }, []);
+
   useEffect(() => {
     load();
-    const interval = setInterval(load, REFRESH_INTERVAL_MS);
+    loadTrends();
+    const interval = setInterval(() => {
+      load();
+      loadTrends();
+    }, REFRESH_INTERVAL_MS);
     return () => clearInterval(interval);
-  }, [load]);
+  }, [load, loadTrends]);
 
   if (loading) {
     return (
@@ -162,6 +182,29 @@ function DashboardPage() {
           emptyLinkLabel="Start a run"
         />
       </div>
+
+      <h2 className="section-title">Trends</h2>
+      {trendsError && !trends && (
+        <p className="form-error" role="alert">
+          Could not load trend charts: {trendsError}
+        </p>
+      )}
+      {trends && (
+        <div className="charts-grid">
+          <div className="chart-card">
+            <h3 className="chart-title">Pass Rate — Last {trends.pass_rate_trend.length} Runs</h3>
+            <PassRateTrendChart data={trends.pass_rate_trend} />
+          </div>
+          <div className="chart-card">
+            <h3 className="chart-title">Bugs Opened vs Closed — Last 8 Weeks</h3>
+            <BugsWeeklyChart data={trends.bugs_weekly} />
+          </div>
+          <div className="chart-card">
+            <h3 className="chart-title">Test Coverage by Status</h3>
+            <StatusDonutChart data={trends.status_breakdown} />
+          </div>
+        </div>
+      )}
 
       <h2 className="section-title">Recent Test Runs</h2>
       <table className="test-cases-table">

@@ -13,6 +13,7 @@ import bugsRouter from './routes/bugs.js';
 import runsRouter from './routes/runs.js';
 import dashboardRouter from './routes/dashboard.js';
 import reportsRouter from './routes/reports.js';
+import settingsRouter from './routes/settings.js';
 import { seedIfEmpty, seedSuitesIfEmpty, seedBugsIfEmpty, seedRunsIfEmpty, seedReportsIfEmpty } from './seed.js';
 
 const app = express();
@@ -33,6 +34,7 @@ app.use('/api/bugs', bugsRouter);
 app.use('/api/runs', runsRouter);
 app.use('/api/dashboard', dashboardRouter);
 app.use('/api/reports', reportsRouter);
+app.use('/api/settings', settingsRouter);
 
 seedIfEmpty();
 seedSuitesIfEmpty();

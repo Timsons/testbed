@@ -112,4 +112,18 @@ db.exec(`
   )
 `);
 
+// Singleton row (id is always 1) — one row per user, and for now there's
+// only one user.
+db.exec(`
+  CREATE TABLE IF NOT EXISTS user_preferences (
+    id INTEGER PRIMARY KEY CHECK (id = 1),
+    theme TEXT NOT NULL CHECK (theme IN ('light', 'dark', 'system')) DEFAULT 'system',
+    default_severity_for_new_bugs TEXT NOT NULL CHECK (default_severity_for_new_bugs IN ('critical', 'major', 'minor', 'trivial')) DEFAULT 'minor',
+    default_page_size INTEGER NOT NULL CHECK (default_page_size IN (10, 20, 50, 100)) DEFAULT 20,
+    timezone TEXT,
+    auto_generate_report_after_run INTEGER NOT NULL CHECK (auto_generate_report_after_run IN (0, 1)) DEFAULT 1,
+    updated_at TEXT NOT NULL
+  )
+`);
+
 export default db;

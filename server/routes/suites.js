@@ -41,12 +41,17 @@ function getSuiteCases(suiteId) {
 
 function handleListSuites(req, res) {
   const status = req.query.status;
+  const search = typeof req.query.search === 'string' ? req.query.search.trim() : '';
   const where = [];
   const params = {};
 
   if (status && STATUSES.includes(status)) {
     where.push('status = @status');
     params.status = status;
+  }
+  if (search) {
+    where.push('(name LIKE @search OR feature LIKE @search)');
+    params.search = `%${search}%`;
   }
 
   const whereClause = where.length ? `WHERE ${where.join(' AND ')}` : '';

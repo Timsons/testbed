@@ -1,8 +1,15 @@
 import { Fragment, useCallback, useEffect, useState } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import SeverityBadge from '../components/SeverityBadge.jsx';
 import Pagination from '../components/Pagination.jsx';
 import TestCaseFormModal from '../components/TestCaseFormModal.jsx';
-import { createTestCase, deleteTestCase, listTestCases, updateTestCase } from '../api/test-cases.js';
+import {
+  createTestCase,
+  deleteTestCase,
+  getTestCaseExportUrl,
+  listTestCases,
+  updateTestCase,
+} from '../api/test-cases.js';
 
 const STATUSES = ['draft', 'ready', 'passed', 'failed', 'skipped'];
 const PAGE_SIZE = 20;
@@ -12,13 +19,14 @@ function formatDate(iso) {
 }
 
 function TestCasesPage() {
+  const [searchParams] = useSearchParams();
   const [items, setItems] = useState([]);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [sortBy, setSortBy] = useState('updated_at');
   const [sortDir, setSortDir] = useState('desc');
   const [statusFilter, setStatusFilter] = useState('');
-  const [search, setSearch] = useState('');
+  const [search, setSearch] = useState(searchParams.get('search') || '');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [modalState, setModalState] = useState(null); // null | 'create' | <test case object>
@@ -83,7 +91,19 @@ function TestCasesPage() {
     <div className="page">
       <div className="page-header">
         <h1>Test Cases</h1>
-        <button onClick={() => setModalState('create')}>+ New Test Case</button>
+        <div className="page-header-actions">
+          <a
+            className="button-link"
+            href={getTestCaseExportUrl({ status: statusFilter, search, sortBy, sortDir })}
+            download
+          >
+            Download CSV
+          </a>
+          <Link to="/test-cases/import" className="button-link">
+            + Import CSV
+          </Link>
+          <button onClick={() => setModalState('create')}>+ New Test Case</button>
+        </div>
       </div>
 
       <div className="toolbar">

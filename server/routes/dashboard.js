@@ -86,6 +86,104 @@ function getRecentActivity() {
   }));
 }
 
+const TEST_CASE_STATUSES = ['draft', 'ready', 'passed', 'failed', 'skipped'];
+const BUG_WEEKS = 8;
+const PASS_RATE_RUN_LIMIT = 10;
+
+// Pass rate per run, oldest to newest, over the last PASS_RATE_RUN_LIMIT runs.
+// Null pass_rate means nothing was recorded yet for that run (no passed/failed
+// results), rather than a misleading 0%.
+function getPassRateTrend() {
+  const runs = db
+    .prepare(
+      `SELECT r.id, r.start_time,
+              SUM(CASE WHEN rr.result = 'passed' THEN 1 ELSE 0 END) AS passed,
+              SUM(CASE WHEN rr.result = 'failed' THEN 1 ELSE 0 END) AS failed
+       FROM test_runs_v2 r
+       LEFT JOIN test_run_results rr ON rr.run_id = r.id
+       GROUP BY r.id
+       ORDER BY r.start_time DESC
+       LIMIT ?`
+    )
+    .all(PASS_RATE_RUN_LIMIT);
+
+  return runs.reverse().map((run) => {
+    const denominator = run.passed + run.failed;
+    return {
+      run_id: run.id,
+      date: run.start_time,
+      pass_rate: denominator > 0 ? Math.round((run.passed / denominator) * 1000) / 10 : null,
+    };
+  });
+}
+
+// Monday-based week start (UTC day granularity).
+function startOfWeek(date) {
+  const d = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+  const day = d.getUTCDay();
+  const diff = (day === 0 ? -6 : 1) - day;
+  d.setUTCDate(d.getUTCDate() + diff);
+  return d;
+}
+
+// Bugs opened (created) vs closed (a status_change into resolved/closed) per
+// week, for the last BUG_WEEKS weeks including the current one.
+function getBugsWeeklyTrend() {
+  const currentWeekStart = startOfWeek(new Date());
+
+  const buckets = [];
+  for (let i = BUG_WEEKS - 1; i >= 0; i--) {
+    const start = new Date(currentWeekStart);
+    start.setUTCDate(start.getUTCDate() - i * 7);
+    const end = new Date(start);
+    end.setUTCDate(end.getUTCDate() + 7);
+    buckets.push({ week_start: start.toISOString(), start, end, opened: 0, closed: 0 });
+  }
+
+  function bucketFor(timestamp) {
+    const t = new Date(timestamp);
+    return buckets.find((b) => t >= b.start && t < b.end);
+  }
+
+  const openedRows = db.prepare('SELECT created_at FROM bugs').all();
+  for (const row of openedRows) {
+    const bucket = bucketFor(row.created_at);
+    if (bucket) bucket.opened += 1;
+  }
+
+  const closedRows = db
+    .prepare(
+      `SELECT timestamp FROM bug_activity
+       WHERE action = 'status_change' AND new_value IN ('resolved', 'closed')`
+    )
+    .all();
+  for (const row of closedRows) {
+    const bucket = bucketFor(row.timestamp);
+    if (bucket) bucket.closed += 1;
+  }
+
+  return buckets.map((b) => ({ week_start: b.week_start, opened: b.opened, closed: b.closed }));
+}
+
+function getTestCaseStatusBreakdown() {
+  const rows = db.prepare('SELECT status, COUNT(*) AS count FROM test_cases GROUP BY status').all();
+  const counts = Object.fromEntries(TEST_CASE_STATUSES.map((status) => [status, 0]));
+  for (const row of rows) counts[row.status] = row.count;
+  return TEST_CASE_STATUSES.map((status) => ({ status, count: counts[status] }));
+}
+
+function handleGetDashboardTrends(req, res) {
+  res.json({
+    success: true,
+    data: {
+      pass_rate_trend: getPassRateTrend(),
+      bugs_weekly: getBugsWeeklyTrend(),
+      status_breakdown: getTestCaseStatusBreakdown(),
+    },
+    error: null,
+  });
+}
+
 function handleGetDashboardMetrics(req, res) {
   res.json({
     success: true,
@@ -104,5 +202,6 @@ function handleGetDashboardMetrics(req, res) {
 }
 
 router.get('/metrics', handleGetDashboardMetrics);
+router.get('/trends', handleGetDashboardTrends);
 
 export default router;
