@@ -1,10 +1,25 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import SeverityBadge from '../components/SeverityBadge.jsx';
-import { addBugComment, changeBugStatus, deleteBug, getBug } from '../api/bugs.js';
+import {
+  addBugComment,
+  changeBugStatus,
+  deleteBug,
+  deleteBugScreenshot,
+  getBug,
+  getBugScreenshotUrl,
+  uploadBugScreenshots,
+} from '../api/bugs.js';
+
+const MAX_SCREENSHOTS = 5;
 
 function formatDate(iso) {
   return new Date(iso).toLocaleString();
+}
+
+function formatBytes(bytes) {
+  if (bytes < 1024) return `${bytes} B`;
+  return `${(bytes / 1024).toFixed(1)} KB`;
 }
 
 function ActivityEntry({ entry }) {
@@ -44,6 +59,8 @@ function BugDetailPage() {
   const [commentText, setCommentText] = useState('');
   const [submittingStatus, setSubmittingStatus] = useState(false);
   const [submittingComment, setSubmittingComment] = useState(false);
+  const [uploadingScreenshots, setUploadingScreenshots] = useState(false);
+  const screenshotInputRef = useRef(null);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -99,6 +116,34 @@ function BugDetailPage() {
       handleBugGoneOrError(err);
     } finally {
       setSubmittingComment(false);
+    }
+  }
+
+  async function handleScreenshotsSelected(event) {
+    const files = Array.from(event.target.files || []);
+    event.target.value = ''; // allow re-selecting the same file(s) later
+    if (files.length === 0) return;
+
+    setUploadingScreenshots(true);
+    setError(null);
+    try {
+      const screenshots = await uploadBugScreenshots(id, files);
+      setBug((current) => ({ ...current, screenshots }));
+    } catch (err) {
+      handleBugGoneOrError(err);
+    } finally {
+      setUploadingScreenshots(false);
+    }
+  }
+
+  async function handleRemoveScreenshot(screenshotId) {
+    if (!window.confirm('Remove this screenshot? This cannot be undone.')) return;
+    setError(null);
+    try {
+      const screenshots = await deleteBugScreenshot(id, screenshotId);
+      setBug((current) => ({ ...current, screenshots }));
+    } catch (err) {
+      handleBugGoneOrError(err);
     }
   }
 
@@ -169,6 +214,46 @@ function BugDetailPage() {
       <section className="bug-section">
         <h3>Actual</h3>
         <p>{bug.actual}</p>
+      </section>
+
+      <section className="bug-section">
+        <h3>Screenshots</h3>
+        {bug.screenshots.length === 0 ? (
+          <p>No screenshots attached.</p>
+        ) : (
+          <ul className="screenshot-gallery">
+            {bug.screenshots.map((screenshot) => (
+              <li key={screenshot.id} className="screenshot-gallery-item">
+                <a href={getBugScreenshotUrl(id, screenshot.id)} target="_blank" rel="noreferrer">
+                  <img src={getBugScreenshotUrl(id, screenshot.id)} alt={screenshot.filename} />
+                </a>
+                <div className="screenshot-gallery-meta">
+                  <span title={screenshot.filename}>{screenshot.filename}</span>
+                  <span>{formatBytes(screenshot.size_bytes)}</span>
+                </div>
+                <button type="button" onClick={() => handleRemoveScreenshot(screenshot.id)}>
+                  Remove
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+
+        <label htmlFor="screenshot-upload-input" className="screenshot-upload-label">
+          {uploadingScreenshots ? 'Uploading...' : 'Add screenshot(s)'}
+        </label>
+        <input
+          id="screenshot-upload-input"
+          type="file"
+          accept="image/png,image/jpeg,image/gif,image/webp"
+          multiple
+          ref={screenshotInputRef}
+          onChange={handleScreenshotsSelected}
+          disabled={uploadingScreenshots || bug.screenshots.length >= MAX_SCREENSHOTS}
+        />
+        {bug.screenshots.length >= MAX_SCREENSHOTS && (
+          <p className="screenshot-limit-note">Maximum of {MAX_SCREENSHOTS} screenshots per bug.</p>
+        )}
       </section>
 
       <section className="bug-section">

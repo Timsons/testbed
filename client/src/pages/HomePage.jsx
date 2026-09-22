@@ -12,7 +12,7 @@ function HomePage() {
 
   return (
     <div className="page">
-      <h1>Bootcamp App</h1>
+      <h1>Testbed</h1>
       <p>Server status: {status}</p>
     </div>
   );

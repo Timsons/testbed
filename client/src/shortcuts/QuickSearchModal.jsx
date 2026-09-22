@@ -130,6 +130,7 @@ function QuickSearchModal({ onClose }) {
           type="text"
           className="quick-search-input"
           placeholder="Search test cases, bugs, and suites..."
+          aria-label="Search test cases, bugs, and suites"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           onKeyDown={handleKeyDown}

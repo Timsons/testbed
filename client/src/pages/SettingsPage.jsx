@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useSettings } from '../context/SettingsContext.jsx';
 
-const THEMES = ['light', 'dark', 'system'];
+const THEMES = ['light', 'dark', 'system', 'polish'];
 const SEVERITIES = ['critical', 'major', 'minor', 'trivial'];
 const PAGE_SIZES = [10, 20, 50, 100];
 

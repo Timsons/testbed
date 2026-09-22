@@ -87,6 +87,18 @@ function TestCasesPage() {
     return sortDir === 'asc' ? ' ↑' : ' ↓';
   }
 
+  function ariaSortValue(field) {
+    if (sortBy !== field) return 'none';
+    return sortDir === 'asc' ? 'ascending' : 'descending';
+  }
+
+  function handleSortKeyDown(event, field) {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      toggleSort(field);
+    }
+  }
+
   return (
     <div className="page">
       <div className="page-header">
@@ -109,10 +121,15 @@ function TestCasesPage() {
       <div className="toolbar">
         <input
           placeholder="Search by title..."
+          aria-label="Search test cases"
           value={search}
           onChange={(event) => setSearch(event.target.value)}
         />
-        <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
+        <select
+          aria-label="Filter by status"
+          value={statusFilter}
+          onChange={(event) => setStatusFilter(event.target.value)}
+        >
           <option value="">All statuses</option>
           {STATUSES.map((option) => (
             <option key={option} value={option}>
@@ -128,11 +145,25 @@ function TestCasesPage() {
         <thead>
           <tr>
             <th>Title</th>
-            <th className="sortable" onClick={() => toggleSort('severity')}>
+            <th
+              className="sortable"
+              tabIndex={0}
+              role="button"
+              aria-sort={ariaSortValue('severity')}
+              onClick={() => toggleSort('severity')}
+              onKeyDown={(event) => handleSortKeyDown(event, 'severity')}
+            >
               Severity{sortIndicator('severity')}
             </th>
             <th>Status</th>
-            <th className="sortable" onClick={() => toggleSort('updated_at')}>
+            <th
+              className="sortable"
+              tabIndex={0}
+              role="button"
+              aria-sort={ariaSortValue('updated_at')}
+              onClick={() => toggleSort('updated_at')}
+              onKeyDown={(event) => handleSortKeyDown(event, 'updated_at')}
+            >
               Updated{sortIndicator('updated_at')}
             </th>
             <th />
@@ -156,7 +187,9 @@ function TestCasesPage() {
                       className="title-toggle"
                       onClick={() => setExpandedId(expandedId === item.id ? null : item.id)}
                     >
-                      <span className={`chevron ${expandedId === item.id ? 'open' : ''}`}>&#8250;</span>
+                      <span className={`chevron ${expandedId === item.id ? 'open' : ''}`} aria-hidden="true">
+                        &#8250;
+                      </span>
                       {item.title}
                     </button>
                   </td>
@@ -168,6 +201,7 @@ function TestCasesPage() {
                   <td className="row-actions">
                     <button
                       className="icon-button"
+                      aria-label={`Actions for ${item.title}`}
                       onClick={() => setOpenMenuId(openMenuId === item.id ? null : item.id)}
                     >
                       &#8942;

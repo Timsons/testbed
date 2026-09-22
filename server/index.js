@@ -19,6 +19,11 @@ import { seedIfEmpty, seedSuitesIfEmpty, seedBugsIfEmpty, seedRunsIfEmpty, seedR
 const app = express();
 const PORT = process.env.PORT || 3001;
 
+// Deployed behind a reverse proxy (Render, etc.) that terminates TLS —
+// without this, req.protocol always reports 'http' even on an https
+// request, which would break the Discord alert link below.
+app.set('trust proxy', true);
+
 app.use(cors());
 app.use(express.json());
 
@@ -41,6 +46,20 @@ seedSuitesIfEmpty();
 seedBugsIfEmpty();
 seedRunsIfEmpty();
 seedReportsIfEmpty();
+
+// In production there's one deployed service, not separate client/server
+// dev ports — this serves the client's built files and falls back to
+// index.html for any non-API GET so React Router's client-side routes
+// (e.g. /bugs/3) work on a hard refresh. In local dev, client/dist won't
+// exist (the client runs on its own Vite dev server instead), so this is a
+// no-op: express.static finds nothing and sendFile 404s harmlessly.
+const clientDist = path.join(__dirname, '..', 'client', 'dist');
+app.use(express.static(clientDist));
+app.get(/^\/(?!api\/).*/, (req, res) => {
+  res.sendFile(path.join(clientDist, 'index.html'), (err) => {
+    if (err) res.status(404).send('Not found. Run `npm run build` to generate client/dist.');
+  });
+});
 
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);

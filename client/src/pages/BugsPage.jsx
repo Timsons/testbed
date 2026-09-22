@@ -2,10 +2,12 @@ import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import SeverityBadge from '../components/SeverityBadge.jsx';
 import BugFormModal from '../components/BugFormModal.jsx';
-import { createBug, listBugs } from '../api/bugs.js';
+import { createBug, listBugs, uploadBugScreenshots } from '../api/bugs.js';
 
 const STATUSES = ['open', 'in-progress', 'resolved', 'closed', 'reopened'];
-const SEVERITIES = ['critical', 'major', 'minor', 'trivial'];
+// "trivial" is a valid bug severity (see BugFormModal) but is excluded here
+// as a filter option per explicit request.
+const SEVERITY_FILTER_OPTIONS = ['critical', 'major', 'minor'];
 
 function formatDate(iso) {
   return new Date(iso).toLocaleString();
@@ -62,10 +64,26 @@ function BugsPage() {
     }
   }
 
-  async function handleCreate(payload) {
-    await createBug(payload);
+  async function handleCreate(payload, screenshotFiles = []) {
+    const bug = await createBug(payload);
+    // The bug itself is now saved — close the modal so re-submitting can't
+    // create a duplicate. Any screenshot failure is reported separately
+    // rather than re-thrown, since the create action already succeeded.
     setShowForm(false);
+
+    let screenshotError = null;
+    if (screenshotFiles.length > 0) {
+      try {
+        await uploadBugScreenshots(bug.id, screenshotFiles);
+      } catch (err) {
+        screenshotError = `Bug "${bug.title}" was created, but its screenshots failed to upload: ${err.message}`;
+      }
+    }
+
+    // load() clears the error state itself before re-fetching, so any
+    // screenshot-upload error has to be set after calling it, not before.
     load();
+    if (screenshotError) setError(screenshotError);
   }
 
   return (
@@ -78,6 +96,7 @@ function BugsPage() {
       <div className="toolbar">
         <input
           placeholder="Search by title or description..."
+          aria-label="Search bugs"
           value={search}
           onChange={(event) => setSearch(event.target.value)}
         />
@@ -99,7 +118,7 @@ function BugsPage() {
           onChange={(event) => setSeverityFilter(event.target.value)}
         >
           <option value="">All severities</option>
-          {SEVERITIES.map((option) => (
+          {SEVERITY_FILTER_OPTIONS.map((option) => (
             <option key={option} value={option}>
               {option}
             </option>

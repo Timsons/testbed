@@ -55,3 +55,23 @@ export function addBugComment(id, message) {
     body: JSON.stringify({ message }),
   });
 }
+
+export function uploadBugScreenshots(bugId, files) {
+  const formData = new FormData();
+  for (const file of files) {
+    formData.append('files', file);
+  }
+  // No Content-Type header — the browser sets the multipart boundary itself.
+  return request(`${BASE_URL}/${bugId}/screenshots`, {
+    method: 'POST',
+    body: formData,
+  });
+}
+
+export function deleteBugScreenshot(bugId, screenshotId) {
+  return request(`${BASE_URL}/${bugId}/screenshots/${screenshotId}`, { method: 'DELETE' });
+}
+
+export function getBugScreenshotUrl(bugId, screenshotId) {
+  return `${BASE_URL}/${bugId}/screenshots/${screenshotId}`;
+}

@@ -3,6 +3,7 @@ import { useSettings } from '../context/SettingsContext.jsx';
 
 const SEVERITIES = ['critical', 'major', 'minor', 'trivial'];
 const ENVIRONMENTS = ['Web Chrome', 'Android Chrome', 'iOS Chrome', 'iOS Safari'];
+const MAX_SCREENSHOTS = 5;
 
 function textToSteps(text) {
   return text
@@ -20,15 +21,49 @@ function BugFormModal({ onClose, onSubmit }) {
   const [expected, setExpected] = useState('');
   const [actual, setActual] = useState('');
   const [environment, setEnvironment] = useState(ENVIRONMENTS[0]);
+  const [screenshots, setScreenshots] = useState([]);
   const [error, setError] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+  const fileInputRef = useRef(null);
 
   const modalRef = useRef(null);
   const titleFieldRef = useRef(null);
+  const screenshotsRef = useRef(screenshots);
 
   useEffect(() => {
     titleFieldRef.current?.focus();
   }, []);
+
+  useEffect(() => {
+    screenshotsRef.current = screenshots;
+  }, [screenshots]);
+
+  // Revoke every preview URL still outstanding when the modal goes away,
+  // whatever the reason — closed, submitted, or unmounted by the parent.
+  useEffect(() => {
+    return () => {
+      screenshotsRef.current.forEach((s) => URL.revokeObjectURL(s.previewUrl));
+    };
+  }, []);
+
+  function handleFilesSelected(event) {
+    const selected = Array.from(event.target.files || []);
+    event.target.value = ''; // allow re-selecting the same file(s) later
+    if (selected.length === 0) return;
+
+    setScreenshots((current) => {
+      const combined = [...current, ...selected.map((file) => ({ file, previewUrl: URL.createObjectURL(file) }))];
+      return combined.slice(0, MAX_SCREENSHOTS);
+    });
+  }
+
+  function handleRemoveScreenshot(index) {
+    setScreenshots((current) => {
+      const removed = current[index];
+      if (removed) URL.revokeObjectURL(removed.previewUrl);
+      return current.filter((_, i) => i !== index);
+    });
+  }
 
   useEffect(() => {
     function handleKeyDown(event) {
@@ -71,15 +106,18 @@ function BugFormModal({ onClose, onSubmit }) {
     setSubmitting(true);
     setError(null);
     try {
-      await onSubmit({
-        title: title.trim(),
-        description: description.trim(),
-        severity,
-        steps_to_reproduce: steps,
-        expected: expected.trim(),
-        actual: actual.trim(),
-        environment,
-      });
+      await onSubmit(
+        {
+          title: title.trim(),
+          description: description.trim(),
+          severity,
+          steps_to_reproduce: steps,
+          expected: expected.trim(),
+          actual: actual.trim(),
+          environment,
+        },
+        screenshots.map((s) => s.file)
+      );
     } catch (err) {
       setError(err.message);
       setSubmitting(false);
@@ -158,6 +196,32 @@ function BugFormModal({ onClose, onSubmit }) {
               ))}
             </select>
           </label>
+
+          <label>
+            Screenshots (optional, up to {MAX_SCREENSHOTS})
+            <input
+              type="file"
+              accept="image/png,image/jpeg,image/gif,image/webp"
+              multiple
+              ref={fileInputRef}
+              onChange={handleFilesSelected}
+              disabled={screenshots.length >= MAX_SCREENSHOTS}
+            />
+          </label>
+
+          {screenshots.length > 0 && (
+            <ul className="screenshot-preview-list">
+              {screenshots.map((s, index) => (
+                <li key={s.previewUrl} className="screenshot-preview-item">
+                  <img src={s.previewUrl} alt={`Preview of ${s.file.name}`} />
+                  <span className="screenshot-preview-name">{s.file.name}</span>
+                  <button type="button" onClick={() => handleRemoveScreenshot(index)} disabled={submitting}>
+                    Remove
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
 
           {error && (
             <p className="form-error" role="alert">

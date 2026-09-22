@@ -9,11 +9,11 @@ const GAP_DEG = 2.5;
 // Fixed order and colors so a status never repaints when data changes.
 // Ordered so red (failed) and green (passed) never sit adjacent in the ring.
 const STATUS_META = {
-  draft: { label: 'Draft', color: '#4a3aa7' },
-  ready: { label: 'Ready', color: '#2a78d6' },
+  draft: { label: 'Draft', color: '#c9c2b4' },
+  ready: { label: 'Ready', color: '#f2a541' },
   passed: { label: 'Passed', color: '#1b7f37' },
-  skipped: { label: 'Skipped', color: '#eda100' },
-  failed: { label: 'Failed', color: '#a11d10' },
+  skipped: { label: 'Skipped', color: '#f5d547' },
+  failed: { label: 'Failed', color: '#e4572e' },
 };
 const STATUS_ORDER = ['draft', 'ready', 'passed', 'skipped', 'failed'];
 

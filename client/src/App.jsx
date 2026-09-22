@@ -1,4 +1,5 @@
-import { BrowserRouter, Link, Route, Routes } from 'react-router-dom';
+import { BrowserRouter, Route, Routes } from 'react-router-dom';
+import Nav from './components/Nav.jsx';
 import HomePage from './pages/HomePage.jsx';
 import DashboardPage from './pages/DashboardPage.jsx';
 import TestCasesPage from './pages/TestCasesPage.jsx';
@@ -20,16 +21,7 @@ function App() {
     <SettingsProvider>
       <BrowserRouter>
         <KeyboardShortcuts />
-        <nav className="nav">
-          <Link to="/">Home</Link>
-          <Link to="/dashboard">Dashboard</Link>
-          <Link to="/test-cases">Test Cases</Link>
-          <Link to="/test-suites">Test Suites</Link>
-          <Link to="/bugs">Bugs</Link>
-          <Link to="/test-runs">Test Runs</Link>
-          <Link to="/reports">Reports</Link>
-          <Link to="/settings">Settings</Link>
-        </nav>
+        <Nav />
         <Routes>
           <Route path="/" element={<HomePage />} />
           <Route path="/dashboard" element={<DashboardPage />} />

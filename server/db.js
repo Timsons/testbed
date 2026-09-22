@@ -112,12 +112,24 @@ db.exec(`
   )
 `);
 
+db.exec(`
+  CREATE TABLE IF NOT EXISTS bug_screenshots (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    bug_id INTEGER NOT NULL REFERENCES bugs(id) ON DELETE CASCADE,
+    filename TEXT NOT NULL,
+    mime_type TEXT NOT NULL CHECK (mime_type IN ('image/png', 'image/jpeg', 'image/gif', 'image/webp')),
+    size_bytes INTEGER NOT NULL,
+    data BLOB NOT NULL,
+    uploaded_at TEXT NOT NULL
+  )
+`);
+
 // Singleton row (id is always 1) — one row per user, and for now there's
 // only one user.
 db.exec(`
   CREATE TABLE IF NOT EXISTS user_preferences (
     id INTEGER PRIMARY KEY CHECK (id = 1),
-    theme TEXT NOT NULL CHECK (theme IN ('light', 'dark', 'system')) DEFAULT 'system',
+    theme TEXT NOT NULL CHECK (theme IN ('light', 'dark', 'system', 'polish')) DEFAULT 'system',
     default_severity_for_new_bugs TEXT NOT NULL CHECK (default_severity_for_new_bugs IN ('critical', 'major', 'minor', 'trivial')) DEFAULT 'minor',
     default_page_size INTEGER NOT NULL CHECK (default_page_size IN (10, 20, 50, 100)) DEFAULT 20,
     timezone TEXT,
@@ -125,5 +137,30 @@ db.exec(`
     updated_at TEXT NOT NULL
   )
 `);
+
+// The table above only gets today's CHECK constraint on a fresh database —
+// SQLite can't ALTER a CHECK constraint in place, so a database created
+// before the 'polish' theme existed needs its user_preferences table
+// rebuilt to accept it. Safe to run every boot: a no-op once the rebuilt
+// table is in place, since its sql already mentions 'polish'.
+const currentSchema = db
+  .prepare(`SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'user_preferences'`)
+  .get();
+if (currentSchema && !currentSchema.sql.includes("'polish'")) {
+  db.exec(`
+    ALTER TABLE user_preferences RENAME TO user_preferences_pre_polish;
+    CREATE TABLE user_preferences (
+      id INTEGER PRIMARY KEY CHECK (id = 1),
+      theme TEXT NOT NULL CHECK (theme IN ('light', 'dark', 'system', 'polish')) DEFAULT 'system',
+      default_severity_for_new_bugs TEXT NOT NULL CHECK (default_severity_for_new_bugs IN ('critical', 'major', 'minor', 'trivial')) DEFAULT 'minor',
+      default_page_size INTEGER NOT NULL CHECK (default_page_size IN (10, 20, 50, 100)) DEFAULT 20,
+      timezone TEXT,
+      auto_generate_report_after_run INTEGER NOT NULL CHECK (auto_generate_report_after_run IN (0, 1)) DEFAULT 1,
+      updated_at TEXT NOT NULL
+    );
+    INSERT INTO user_preferences SELECT * FROM user_preferences_pre_polish;
+    DROP TABLE user_preferences_pre_polish;
+  `);
+}
 
 export default db;

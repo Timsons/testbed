@@ -4,7 +4,6 @@ import db from '../db.js';
 const router = express.Router();
 
 const RESULTS = ['passed', 'failed', 'skipped'];
-const APP_BASE_URL = 'http://localhost:5173';
 
 function getRunResults(runId) {
   return db
@@ -36,11 +35,11 @@ function recalculateRunCounts(runId) {
   ).run(passCount, failCount, skipCount, shouldComplete ? 'completed' : 'in-progress', endTime, runId);
 }
 
-async function sendFailureAlert({ runId, testCaseTitle, notes }) {
+async function sendFailureAlert({ runId, testCaseTitle, notes, baseUrl }) {
   const webhookUrl = process.env.DISCORD_WEBHOOK_URL;
   if (!webhookUrl) return false;
 
-  const runLink = `${APP_BASE_URL}/test-runs/${runId}`;
+  const runLink = `${baseUrl}/test-runs/${runId}`;
   const content = [
     `🔴 Test failed: "${testCaseTitle || 'Unknown test case'}"`,
     `Notes: ${notes && notes.trim() ? notes.trim() : 'No notes provided.'}`,
@@ -163,10 +162,16 @@ async function handleUpdateResult(req, res) {
 
   if (result === 'failed') {
     const testCase = db.prepare('SELECT title FROM test_cases WHERE id = ?').get(testCaseId);
+    // APP_BASE_URL is an optional override (e.g. a custom domain that
+    // differs from the request's own host); it defaults to whatever host
+    // actually served this request, so the link is correct with zero
+    // config on any deploy target.
+    const baseUrl = process.env.APP_BASE_URL || `${req.protocol}://${req.get('host')}`;
     const sent = await sendFailureAlert({
       runId: run.id,
       testCaseTitle: testCase ? testCase.title : null,
       notes: notes ?? existing.notes,
+      baseUrl,
     });
     if (sent) alertSentAt = now;
   }

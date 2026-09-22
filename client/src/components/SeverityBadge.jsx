@@ -1,8 +1,8 @@
 const COLORS = {
-  critical: { bg: '#fde2e1', fg: '#a11d10' },
-  major: { bg: '#ffe8cc', fg: '#a15c00' },
-  minor: { bg: '#fff6cc', fg: '#8a6d00' },
-  trivial: { bg: '#e6e6e6', fg: '#555555' },
+  critical: { bg: 'var(--severity-critical)', fg: 'var(--severity-ink)' },
+  major: { bg: 'var(--severity-major)', fg: 'var(--severity-ink)' },
+  minor: { bg: 'var(--severity-minor)', fg: 'var(--severity-ink)' },
+  trivial: { bg: 'var(--severity-trivial)', fg: 'var(--severity-ink)' },
 };
 
 function SeverityBadge({ severity }) {

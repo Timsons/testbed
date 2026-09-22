@@ -7,11 +7,11 @@ const PLOT_WIDTH = WIDTH - MARGIN.left - MARGIN.right;
 const PLOT_HEIGHT = HEIGHT - MARGIN.top - MARGIN.bottom;
 const BAR_MAX_WIDTH = 20;
 const BAR_GAP = 3;
-const RADIUS = 4;
+const RADIUS = 0;
 
 const SERIES = [
-  { key: 'opened', label: 'Opened', color: '#2a78d6' },
-  { key: 'closed', label: 'Closed', color: '#eb6834' },
+  { key: 'opened', label: 'Opened', color: '#e4572e' },
+  { key: 'closed', label: 'Closed', color: '#1b7f37' },
 ];
 
 function shortDate(iso) {

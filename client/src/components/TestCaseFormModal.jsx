@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 const SEVERITIES = ['critical', 'major', 'minor', 'trivial'];
 const STATUSES = ['draft', 'ready', 'passed', 'failed', 'skipped'];
@@ -24,6 +24,42 @@ function TestCaseFormModal({ initial, onClose, onSubmit }) {
   const [status, setStatus] = useState(initial?.status || 'draft');
   const [error, setError] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+
+  const modalRef = useRef(null);
+  const titleFieldRef = useRef(null);
+
+  useEffect(() => {
+    titleFieldRef.current?.focus();
+  }, []);
+
+  useEffect(() => {
+    function handleKeyDown(event) {
+      if (event.key === 'Escape') {
+        onClose();
+        return;
+      }
+      if (event.key !== 'Tab' || !modalRef.current) return;
+
+      const focusable = Array.from(
+        modalRef.current.querySelectorAll('input, select, textarea, button')
+      ).filter((el) => !el.disabled);
+      if (focusable.length === 0) return;
+
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
 
   async function handleSubmit(event) {
     event.preventDefault();
@@ -53,12 +89,24 @@ function TestCaseFormModal({ initial, onClose, onSubmit }) {
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal" onClick={(event) => event.stopPropagation()}>
-        <h2>{isEdit ? 'Edit Test Case' : 'New Test Case'}</h2>
+      <div
+        className="modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="test-case-modal-title"
+        ref={modalRef}
+        onClick={(event) => event.stopPropagation()}
+      >
+        <h2 id="test-case-modal-title">{isEdit ? 'Edit Test Case' : 'New Test Case'}</h2>
         <form onSubmit={handleSubmit}>
           <label>
             Title
-            <input value={title} onChange={(event) => setTitle(event.target.value)} required />
+            <input
+              ref={titleFieldRef}
+              value={title}
+              onChange={(event) => setTitle(event.target.value)}
+              required
+            />
           </label>
 
           <label>

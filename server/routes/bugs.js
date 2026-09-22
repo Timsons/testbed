@@ -1,4 +1,5 @@
 import express from 'express';
+import multer from 'multer';
 import db from '../db.js';
 
 const router = express.Router();
@@ -6,6 +7,54 @@ const router = express.Router();
 const SEVERITIES = ['critical', 'major', 'minor', 'trivial'];
 const STATUSES = ['open', 'in-progress', 'resolved', 'closed', 'reopened'];
 const ENVIRONMENTS = ['Web Chrome', 'Android Chrome', 'iOS Chrome', 'iOS Safari'];
+const SCREENSHOT_MIME_TYPES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'];
+const MAX_SCREENSHOTS_PER_UPLOAD = 5;
+
+const uploadScreenshots = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024, files: MAX_SCREENSHOTS_PER_UPLOAD },
+  fileFilter: (req, file, cb) => {
+    if (!SCREENSHOT_MIME_TYPES.includes(file.mimetype)) {
+      return cb(new Error(`"${file.originalname}" isn't a supported image type (PNG, JPEG, GIF, or WEBP only).`));
+    }
+    cb(null, true);
+  },
+});
+
+function handleScreenshotUpload(req, res, next) {
+  uploadScreenshots.array('files', MAX_SCREENSHOTS_PER_UPLOAD)(req, res, (err) => {
+    if (err) {
+      const message =
+        err.code === 'LIMIT_FILE_SIZE'
+          ? 'Each screenshot must be 5MB or smaller.'
+          : err.code === 'LIMIT_FILE_COUNT'
+            ? `You can upload at most ${MAX_SCREENSHOTS_PER_UPLOAD} screenshots at a time.`
+            : err.message;
+      return res.status(400).json({ success: false, data: null, error: message });
+    }
+    next();
+  });
+}
+
+function serializeScreenshot(row) {
+  return {
+    id: row.id,
+    bug_id: row.bug_id,
+    filename: row.filename,
+    mime_type: row.mime_type,
+    size_bytes: row.size_bytes,
+    uploaded_at: row.uploaded_at,
+  };
+}
+
+function getBugScreenshots(bugId) {
+  return db
+    .prepare(
+      'SELECT id, bug_id, filename, mime_type, size_bytes, uploaded_at FROM bug_screenshots WHERE bug_id = ? ORDER BY uploaded_at ASC'
+    )
+    .all(bugId)
+    .map(serializeScreenshot);
+}
 
 const TRANSITIONS = {
   open: ['in-progress', 'closed'],
@@ -125,6 +174,7 @@ function handleGetBug(req, res) {
       ...serializeBug(bug),
       activity: getBugActivity(bug.id),
       allowed_next_statuses: TRANSITIONS[bug.status] || [],
+      screenshots: getBugScreenshots(bug.id),
     },
     error: null,
   });
@@ -157,7 +207,7 @@ function handleCreateBug(req, res) {
   const bug = db.prepare('SELECT * FROM bugs WHERE id = ?').get(result.lastInsertRowid);
   res.status(201).json({
     success: true,
-    data: { ...serializeBug(bug), activity: [], allowed_next_statuses: TRANSITIONS.open },
+    data: { ...serializeBug(bug), activity: [], allowed_next_statuses: TRANSITIONS.open, screenshots: [] },
     error: null,
   });
 }
@@ -281,6 +331,63 @@ function handleAddBugComment(req, res) {
   res.status(201).json({ success: true, data: getBugActivity(bug.id), error: null });
 }
 
+function handleUploadScreenshots(req, res) {
+  const bug = db.prepare('SELECT id FROM bugs WHERE id = ?').get(req.params.id);
+  if (!bug) {
+    return res.status(404).json({ success: false, data: null, error: 'Bug not found.' });
+  }
+
+  const files = req.files || [];
+  if (files.length === 0) {
+    return res.status(400).json({ success: false, data: null, error: 'No image files were uploaded.' });
+  }
+
+  const now = new Date().toISOString();
+  const insertStmt = db.prepare(
+    `INSERT INTO bug_screenshots (bug_id, filename, mime_type, size_bytes, data, uploaded_at)
+     VALUES (@bug_id, @filename, @mime_type, @size_bytes, @data, @uploaded_at)`
+  );
+
+  const insertAll = db.transaction(() => {
+    for (const file of files) {
+      insertStmt.run({
+        bug_id: bug.id,
+        filename: file.originalname,
+        mime_type: file.mimetype,
+        size_bytes: file.size,
+        data: file.buffer,
+        uploaded_at: now,
+      });
+    }
+  });
+  insertAll();
+
+  res.status(201).json({ success: true, data: getBugScreenshots(bug.id), error: null });
+}
+
+function handleGetScreenshotImage(req, res) {
+  const screenshot = db
+    .prepare('SELECT * FROM bug_screenshots WHERE id = ? AND bug_id = ?')
+    .get(req.params.screenshotId, req.params.id);
+  if (!screenshot) {
+    return res.status(404).json({ success: false, data: null, error: 'Screenshot not found.' });
+  }
+  res.setHeader('Content-Type', screenshot.mime_type);
+  res.setHeader('Cache-Control', 'private, max-age=31536000, immutable');
+  res.send(screenshot.data);
+}
+
+function handleDeleteScreenshot(req, res) {
+  const screenshot = db
+    .prepare('SELECT id FROM bug_screenshots WHERE id = ? AND bug_id = ?')
+    .get(req.params.screenshotId, req.params.id);
+  if (!screenshot) {
+    return res.status(404).json({ success: false, data: null, error: 'Screenshot not found.' });
+  }
+  db.prepare('DELETE FROM bug_screenshots WHERE id = ?').run(screenshot.id);
+  res.json({ success: true, data: getBugScreenshots(req.params.id), error: null });
+}
+
 router.get('/', handleListBugs);
 router.get('/:id', handleGetBug);
 router.post('/', handleCreateBug);
@@ -288,5 +395,8 @@ router.put('/:id', handleUpdateBug);
 router.delete('/:id', handleDeleteBug);
 router.patch('/:id/status', handleChangeBugStatus);
 router.post('/:id/comments', handleAddBugComment);
+router.post('/:id/screenshots', handleScreenshotUpload, handleUploadScreenshots);
+router.get('/:id/screenshots/:screenshotId', handleGetScreenshotImage);
+router.delete('/:id/screenshots/:screenshotId', handleDeleteScreenshot);
 
 export default router;

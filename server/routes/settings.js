@@ -3,7 +3,7 @@ import db from '../db.js';
 
 const router = express.Router();
 
-const THEMES = ['light', 'dark', 'system'];
+const THEMES = ['light', 'dark', 'system', 'polish'];
 const SEVERITIES = ['critical', 'major', 'minor', 'trivial'];
 const PAGE_SIZES = [10, 20, 50, 100];
 

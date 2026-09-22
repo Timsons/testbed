@@ -5,7 +5,7 @@ const HEIGHT = 220;
 const MARGIN = { top: 16, right: 16, bottom: 28, left: 34 };
 const PLOT_WIDTH = WIDTH - MARGIN.left - MARGIN.right;
 const PLOT_HEIGHT = HEIGHT - MARGIN.top - MARGIN.bottom;
-const LINE_COLOR = '#2a78d6';
+const LINE_COLOR = '#1b7f37';
 
 function shortDate(iso) {
   return new Date(iso).toLocaleDateString(undefined, { month: 'numeric', day: 'numeric' });
